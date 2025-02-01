@@ -2435,25 +2435,6 @@ class MakeFullModule extends Command
 }
 ```
 
-### **Explanation of Changes:**
-
-1. **Function Calls**: 
-   - The `handle()` function now calls `generateBackendController`, `generateFrontendController`, and `generateViews` for both backend and frontend components.
-   - This ensures that backend and frontend controllers are created with appropriate methods, and both sets of views are generated (backend views with full CRUD operations and frontend views with only `index` and `show`).
-
-2. **Backend and Frontend Views**: 
-   - Views for both frontend and backend are created inside the respective directories (`frontend/{$name}` and `backend/{$name}`) for proper separation.
-   - Each set of views contains the necessary files:
-     - **Frontend**: `index.blade.php` and `show.blade.php`.
-     - **Backend**: `index.blade.php`, `show.blade.php`, `create.blade.php`, and `edit.blade.php`.
-
-3. **Controller Logic**:
-   - **Frontend Controller**: Contains only `index()` and `show()` methods for displaying the list and details of a resource.
-   - **Backend Controller**: Includes full CRUD methods (`index()`, `create()`, `store()`, `show()`, `edit()`, `update()`, `destroy()`).
-
-4. **Customizable**: 
-   - The functionality is modular and can be easily extended or customized for other resource types.
-
 ### **Usage**:
 
 Run the command like this to generate all necessary components for a specific module (e.g., `Product`):
