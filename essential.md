@@ -2184,27 +2184,6 @@ $user->password = 'secret'; // Automatically hashed
 
 Laravel provides built-in tools for authentication. You can use **Laravel Breeze** or **Jetstream** for scaffolding.
 
-### **Quick Setup with Breeze**
-
-1️⃣ Install Laravel Breeze:
-```bash
-composer require laravel/breeze --dev
-php artisan breeze:install
-npm install && npm run dev
-php artisan migrate
-```
-
-2️⃣ Access authentication pages:
-- Visit `/register` to register a user.
-- Visit `/login` to log in.
-
-### **Customizing Authentication**
-
-1. Add custom logic in `AuthServiceProvider` or middleware.
-2. Customize views in `resources/views/auth`.
-
----
-
 ## **Step 4: File Storage**
 
 Laravel provides a powerful **file storage system**.
@@ -2242,12 +2221,3 @@ Storage::disk('local')->put('example.txt', 'File content');
 
 ---
 
-
-### **✅ Next Steps**
-- ✅ Install **Laravel**, **Symfony**, or your preferred PHP framework.
-- ✅ Set up **Nginx or Apache** with proper configurations.
-- ✅ Configure **MySQL/PostgreSQL databases**.
-- ✅ Use **VS Code with PHP extensions** for better development.
-- ✅ Set up **Redis and queues** for optimizing PHP applications.
-
-Now you have a complete setup guide for **PHP development on Mac, Linux, and Windows!** 🚀
