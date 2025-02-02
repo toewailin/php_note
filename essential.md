@@ -670,28 +670,6 @@ Once Composer is installed, install Laravel globally:
 composer global require laravel/installer
 ```
 
-Create a new Laravel project:
-
-```bash
-laravel new project_name
-```
-
-Alternatively:
-
-```bash
-composer create-project --prefer-dist laravel/laravel project_name
-```
-
-Run the project:
-
-```bash
-cd project_name
-npm install && npm run build
-php artisan serve
-```
-
----
-
 ## **8️⃣ Install PHP Code Editor / IDE**
 ### **Best Code Editors for PHP**
 - **VS Code** – [https://code.visualstudio.com](https://code.visualstudio.com)
@@ -765,16 +743,37 @@ sudo systemctl restart apache2
 ## **4️⃣ Set Up a Laravel Project**
 
 Setting up a Laravel project involves creating a new Laravel application, installing dependencies, configuring the environment, and ensuring necessary permissions are set for smooth operation.
+
+
+Create a new Laravel project:
+
+```bash
+laravel new project_name
+```
+
+Alternatively:
+
+```bash
+composer create-project --prefer-dist laravel/laravel project_name
+```
+
+---
+
 ```bash
 Would you like to install a starter kit? ────────────────────┐
  │ › ● No starter kit                                        │
  │   ○ Laravel Breeze                                        │
  │   ○ Laravel Jetstream                                     │
  └───────────────────────────────────────────────────────────┘
- or 
+```
+Or would you like to used Breeze Auth
+
+```bash
  composer require laravel/breeze --dev
  php artisan breeze:install
 ```
+
+After installing Breeze, it will create controller, components, request, view layout, route and test will create automatically.
 
 ### **Choosing the Right Starter Kit**
 
@@ -928,13 +927,8 @@ Dark mode support enhances user experience by reducing eye strain and improving 
 Choosing **Yes** will execute Laravel's built-in migrations, setting up the structure required for user authentication, roles, and other features. 
 If you prefer to manually manage database schema changes, select **No** and run migrations later using:
 
+#### Go to Project Directory
 ```bash
-php artisan migrate
-```
-
-#### Install Laravel and Create a New Project
-```bash
-laravel new project_name
 cd project_name
 ```
 
@@ -951,30 +945,20 @@ code .
 #### Configure Environment File
 Update `.env` file with database details:
 ```bash
-config .env
+DB_CONNECTION=mysql
+DB_DATABASE=db_project_name
+DB_PASSWORD=********
 ```
 
 #### Create a Database
 Log into MySQL and create a new database:
+```bash
+php artisan db
+```
+
+Create database
 ```sql
 CREATE DATABASE db_project_name;
-```
-
-#### Foreign Key Solution
-```bash
-$ SET FOREIGN_KEY_CHECKS = 0;
-$ drop or create table
-$ SET FOREIGN_KEY_CHECKS = 1;
-
-#### Running Laravel Project
-```bash
-composer run dev
-```
-
-#### Set Proper Permissions for Storage and Cache
-```bash
-chmod -R 775 storage bootstrap/cache
-chmod -R 775 storage/logs
 ```
 
 ---
@@ -1089,9 +1073,57 @@ $user->getRoleNames();
 
 ---
 
-## **Step-by-Step Guide: Adding Authentication to Your Laravel Project**
+#### Foreign Key Solution
+```bash
+$ SET FOREIGN_KEY_CHECKS = 0;
+$ drop or create table
+$ SET FOREIGN_KEY_CHECKS = 1;
+```
 
-Laravel provides multiple authentication solutions, such as **Laravel Breeze**, **Laravel Jetstream**, and **Laravel UI**. For most projects, **Laravel Breeze** is the best choice for simplicity and flexibility.
+#### Running Laravel Project
+```bash
+    composer run dev
+```
+
+#### Set Proper Permissions for Storage and Cache
+> **[! WARNING]**
+> Error: `file_put_contents(): Write of 56 bytes failed with errno=32 Broken pipe`
+
+```bash
+    chmod -R 775 storage bootstrap/cache
+    chmod -R 775 storage/logs
+```
+
+For **Apache (Ubuntu)**, the web server user is usually `www-data`:
+
+```bash
+    sudo chown -R www-data:www-data storage bootstrap/cache
+    sudo chown -R www-data:www-data storage/logs
+```
+
+For **Nginx** (it may also be `www-data` or `nginx` depending on your configuration):
+
+```bash
+    sudo chown -R nginx:nginx storage bootstrap/cache
+    sudo chown -R nginx:nginx storage/logs
+```
+
+#### Clear Laravel Cache
+
+```bash
+    php artisan config:clear
+    php artisan cache:clear
+    php artisan route:clear
+    php artisan view:clear
+    php artisan optimize
+```
+
+#### Restart the Laravel Development Server
+
+```bash
+Ctrl + C
+php artisan serve
+```
 
 ---
 
@@ -1798,6 +1830,114 @@ Inside any **Blade template**, you can now use:
 
 ---
 
+### Step 1: Create a Form Request Class
+
+Run the following Artisan command to generate a form request class:
+
+```bash
+php artisan make:request ProductRequest
+```
+
+This will create a file in `app/Http/Requests/ProductRequest.php`.
+
+### Step 2: Define Validation Rules in the ProductRequest Class
+
+Open the generated `ProductRequest.php` file and define your validation rules inside the `rules` method:
+
+```php
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class ProductRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * @return bool
+     */
+    public function authorize()
+    {
+        // You can put your authorization logic here, 
+        // e.g., only allowing authenticated users or admins
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array
+     */
+    public function rules()
+    {
+        return [
+            'name' => 'required|string|max:255',      // Name is required and should be a string with a max length of 255 characters
+            'price' => 'required|numeric|min:0',      // Price is required and should be a numeric value greater than or equal to 0
+            'description' => 'nullable|string',       // Description is optional and should be a string
+        ];
+    }
+
+    /**
+     * Get custom error messages for validation.
+     *
+     * @return array
+     */
+    public function messages()
+    {
+        return [
+            'name.required' => 'The product name is required.',
+            'price.required' => 'The product price is required.',
+            'price.numeric' => 'The product price must be a number.',
+            'description.string' => 'The product description must be a valid string.',
+        ];
+    }
+}
+```
+
+### Step 3: Use the Form Request in the Controller
+
+In your `ProductController`, you can now use the `ProductRequest` class to handle validation automatically when you create a new product. For example, in the `store` method of your `ProductController`:
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\ProductRequest;
+use App\Models\Product;
+
+class ProductController extends Controller
+{
+    /**
+     * Store a newly created product in the database.
+     *
+     * @param  \App\Http\Requests\ProductRequest  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(ProductRequest $request)
+    {
+        // If validation passes, you can access the validated data
+        $validated = $request->validated();
+
+        // Create a new product
+        $product = Product::create([
+            'name' => $validated['name'],
+            'price' => $validated['price'],
+            'description' => $validated['description'] ?? '',
+        ]);
+
+        return response()->json([
+            'message' => 'Product created successfully!',
+            'product' => $product
+        ]);
+    }
+}
+```
+
+---
+
 ### **For Backend (Admin Panel)**
 This command generates a model, migration, and a **fully functional resourceful controller** for managing products in the admin panel.
 
@@ -1829,6 +1969,377 @@ php artisan make:controller Frontend/ProductController --resource --only=index,s
 ### **To Run Migrations**
 ```bash
 php artisan migrate
+```
+---
+or
+
+
+1. **Create the Admin Middleware** to restrict access to specific routes based on roles.
+2. **Define the Routes** for both frontend and backend (admin).
+3. **Create the Controllers** to handle backend functionality.
+4. **Return the Views** correctly using route names for routing and view rendering.
+
+### **Step 1: Create Admin Middleware**
+
+#### 1.1 Generate Middleware
+
+To create the **AdminMiddleware**, run the following Artisan command:
+
+```bash
+php artisan make:middleware AdminMiddleware
+```
+
+This will create the middleware at `app/Http/Middleware/AdminMiddleware.php`.
+
+#### 1.2 Define Middleware Logic
+
+In the `AdminMiddleware`, check if the user is authenticated and has the **admin** role. You can use **Spatie/laravel-permission** for role management.
+
+Here’s how you can define the `AdminMiddleware`:
+
+```php
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+class AdminMiddleware
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        // Check if the user is authenticated and has the 'admin' role
+        if (!auth()->check() || !auth()->user()->hasRole('admin')) {
+            return redirect()->route('home')->with('error', 'You do not have access to this section.');
+        }
+
+        return $next($request);
+    }
+}
+```
+
+#### 1.3 Register Middleware
+
+Next, register the `AdminMiddleware` in the `Kernel.php` to make it available in your routes. Open `app/Http/Kernel.php` and add it to the `$routeMiddleware` array:
+
+```php
+protected $routeMiddleware = [
+    // Other middlewares...
+    'admin' => \App\Http\Middleware\AdminMiddleware::class,
+];
+```
+
+This will allow us to use `'admin'` in our route definitions.
+
+---
+
+### **Step 2: Define Routes for Admin Panel**
+
+In the web.php
+
+```php
+<?php
+
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Frontend\ProductController as FrontendProductController;
+use App\Http\Controllers\Backend\ProductController as BackendProductController;
+use Illuminate\Support\Facades\Route;
+
+// Homepage route
+Route::get('/', function () {
+    return view('welcome');
+});
+
+// Dashboard route (requires authentication and email verification)
+Route::get('/dashboard', function () {
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+// Profile routes
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Admin routes (product CRUD)
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Show all products (Backend)
+    Route::get('/products', [BackendProductController::class, 'index'])->name('products.index');
+    
+    // Create a new product (Backend)
+    Route::get('/products/create', [BackendProductController::class, 'create'])->name('products.create');
+    Route::post('/products', [BackendProductController::class, 'store'])->name('products.store');
+    
+    // Show product details (Backend)
+    Route::get('/products/{product}', [BackendProductController::class, 'show'])->name('products.show');
+    
+    // Edit product (Backend)
+    Route::get('/products/{product}/edit', [BackendProductController::class, 'edit'])->name('products.edit');
+    Route::put('/products/{product}', [BackendProductController::class, 'update'])->name('products.update');
+    
+    // Delete product (Backend)
+    Route::delete('/products/{product}', [BackendProductController::class, 'destroy'])->name('products.destroy');
+});
+
+// Frontend routes (view and show products)
+Route::get('/products', [FrontendProductController::class, 'index'])->name('frontend.products.index');
+Route::get('/products/{product}', [FrontendProductController::class, 'show'])->name('frontend.products.show');
+
+// Cart and checkout routes (Frontend)
+Route::post('/cart', [CartController::class, 'add'])->name('frontend.cart.add');
+Route::get('/cart', [CartController::class, 'view'])->name('frontend.cart.view');
+Route::get('/checkout', [CheckoutController::class, 'index'])->name('frontend.checkout');
+Route::post('/checkout', [CheckoutController::class, 'process'])->name('frontend.checkout.process');
+
+require __DIR__.'/auth.php';
+
+```
+
+---
+
+### **Step 3: Create Controllers**
+
+For the backend, we will generate a resource controller for products, while the frontend will only need methods for `index` and `show`.
+
+#### 3.1 Backend Product Controller
+
+To create the **backend product controller** with full CRUD methods:
+
+```bash
+php artisan make:controller Backend/ProductController --resource
+```
+
+Then, implement the methods in `ProductController.php` to handle CRUD operations:
+
+```php
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    public function index()
+    {
+        $products = Product::all();
+        return view('backend.products.index', compact('products'));
+    }
+
+    public function create()
+    {
+        return view('backend.products.create');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric',
+            'description' => 'nullable|string',
+        ]);
+
+        Product::create($validated);
+        return redirect()->route('admin.products.index')->with('success', 'Product created successfully.');
+    }
+
+    public function show(Product $product)
+    {
+        return view('backend.products.show', compact('product'));
+    }
+
+    public function edit(Product $product)
+    {
+        return view('backend.products.edit', compact('product'));
+    }
+
+    public function update(Request $request, Product $product)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric',
+            'description' => 'nullable|string',
+        ]);
+
+        $product->update($validated);
+        return redirect()->route('admin.products.index')->with('success', 'Product updated successfully.');
+    }
+
+    public function destroy(Product $product)
+    {
+        $product->delete();
+        return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully.');
+    }
+}
+```
+
+#### 3.2 Frontend Product Controller
+
+For the **frontend product controller**, we will only need methods for displaying products and showing their details:
+
+```bash
+php artisan make:controller Frontend/ProductController
+```
+
+Then, implement the `index` and `show` methods:
+
+```php
+namespace App\Http\Controllers\Frontend;
+
+use App\Http\Controllers\Controller;
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    public function index()
+    {
+        $products = Product::all();
+        return view('frontend.products.index', compact('products'));
+    }
+
+    public function show(Product $product)
+    {
+        return view('frontend.products.show', compact('product'));
+    }
+}
+```
+
+---
+
+### **Step 4: Views for Admin and Frontend**
+
+#### 4.1 Admin Views (Backend)
+
+For the backend, we need views for creating, editing, listing, and showing products. You can create these views inside `resources/views/backend/products/`.
+
+For example, here is `index.blade.php` for listing products:
+
+```blade
+<!-- backend/products/index.blade.php -->
+<x-admin-layout>
+    <h1>Products List</h1>
+    <a href="{{ route('admin.products.create') }}">Create New Product</a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($products as $product)
+                <tr>
+                    <td>{{ $product->name }}</td>
+                    <td>{{ $product->price }}</td>
+                    <td>
+                        <a href="{{ route('admin.products.edit', $product) }}">Edit</a>
+                        <form action="{{ route('admin.products.destroy', $product) }}" method="POST">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</x-admin-layout>
+```
+
+#### **Order Controller - `OrderController.php`**
+
+```php
+namespace App\Http\Controllers\Frontend;
+
+use App\Http\Controllers\Controller;
+use App\Models\Order;
+use Illuminate\Http\Request;
+
+class OrderController extends Controller
+{
+    public function checkout()
+    {
+        return view('frontend.checkout');
+    }
+
+    public function placeOrder(Request $request)
+    {
+        // Logic for placing an order
+        $cart = session()->get('cart');
+        
+        $order = Order::create([
+            'user_id' => auth()->id(),
+            'total' => array_sum(array_column($cart, 'price')),
+            // Additional order logic
+        ]);
+
+        // Add order items (products in cart) to the order
+        foreach ($cart as $productId => $details) {
+            $order->products()->attach($productId, ['quantity' => $details['quantity']]);
+        }
+
+        // Clear the cart session
+        session()->forget('cart');
+
+        return redirect()->route('order.success');
+    }
+}
+```
+
+---
+
+### **3. Product Views (Frontend)**
+
+#### **Product Index View (`resources/views/frontend/products/index.blade.php`)**
+
+```blade
+<x-user-layout>
+    <h1>Products</h1>
+    <ul>
+        @foreach($products as $product)
+            <li><a href="{{ route('products.show', $product->id) }}">{{ $product->name }}</a></li>
+        @endforeach
+    </ul>
+</x-user-layout>
+```
+
+#### **Product Show View (`resources/views/frontend/products/show.blade.php`)**
+
+```blade
+<x-user-layout>
+    <h1>{{ $product->name }}</h1>
+    <p>{{ $product->description }}</p>
+    <p>{{ $product->price }}</p>
+    <form action="{{ route('cart.add') }}" method="POST">
+        @csrf
+        <input type="hidden" name="product_id" value="{{ $product->id }}">
+        <button type="submit">Add to Cart</button>
+    </form>
+</x-user-layout>
+```
+
+#### **Cart View (`resources/views/frontend/cart/view.blade.php`)**
+
+```blade
+<x-user-layout>
+    <h1>Your Cart</h1>
+    <ul>
+        @foreach(session('cart') as $productId => $details)
+            <li>{{ $details['name'] }} - {{ $details['quantity'] }} x ${{ $details['price'] }}</li>
+        @endforeach
+    </ul>
+    <a href="{{ route('checkout') }}">Proceed to Checkout</a>
+</x-user-layout>
 ```
 
 ---
