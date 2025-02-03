@@ -1,3 +1,27 @@
+## Laravel Project Process
+
+### step by step project guide
+
+step 1. create project
+
+step 2. install breeze (auth)
+
+step 3. make middleware (roles and permission) // Spatie
+
+step 4. make layout (guest, app (customer), admin (backend))
+
+step 4.1 make view for all layouts (admin/frontend)
+
+step 5. define the features menu (products)
+
+step 6. make a request (for the products)
+
+step 8. make a model for this product
+
+step 7. make a resource/frontend controller for this product
+
+step 9. update a view files for this products
+
 ### **Essential Requirements for Web Development**
 For professional Web development, you need the right tools and configurations. Below is a comprehensive guide covering all necessary requirements:
 
@@ -2041,65 +2065,301 @@ This will allow us to use `'admin'` in our route definitions.
 
 ### **Step 2: Define Routes for Admin Panel**
 
-In the web.php
+---
 
+### **📌 Role Classification for the POS Project**
+For a **Point of Sale (POS) system**, role classification is crucial for ensuring **efficient operations** and **proper access control**. Below is an **optimized role classification** for a POS system:
+
+| **Role** | **Permissions & Responsibilities** |
+|----------|----------------------------------|
+| **Super Admin** | Full access: Manage users, roles, permissions, products, sales, orders, reports, and settings. |
+| **Admin** | Manages products, orders, and reports. No access to system settings. |
+| **Manager** | Manages products, stock levels, discounts, and reports. |
+| **Cashier** | Handles sales transactions, applies discounts, and generates receipts. |
+| **Inventory Staff** | Manages stock, product restocking, and purchase orders. |
+| **Customer** | Can browse products, place orders, view history, and make payments. |
+
+---
+
+## **📌 Updated `web.php` Route Structure for the POS System**
 ```php
 <?php
 
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Frontend\ProductController as FrontendProductController;
+use App\Http\Controllers\Frontend\CartController;
+use App\Http\Controllers\Frontend\CheckoutController;
 use App\Http\Controllers\Backend\ProductController as BackendProductController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Backend\OrderController;
+use App\Http\Controllers\Backend\UserController;
+use App\Http\Controllers\Backend\DashboardController;
+use App\Http\Controllers\Backend\InventoryController;
+use App\Http\Controllers\Backend\SaleController;
 
-// Homepage route
+// =========================
+// 🌍 Public (Guest) Routes
+// =========================
 Route::get('/', function () {
     return view('welcome');
+})->name('home');
+
+// Product Listing (Guest)
+Route::get('/products', [FrontendProductController::class, 'index'])->name('frontend.products.index');
+
+// Product Details (Guest)
+Route::get('/products/{product}', [FrontendProductController::class, 'show'])->name('frontend.products.show');
+
+// ===========================
+// 🔐 Authenticated User Routes (Customer)
+// ===========================
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', function () {
+        return view('frontend.dashboard');
+    })->name('dashboard');
+
+    // 🔹 User Profile
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [ProfileController::class, 'edit'])->name('edit');
+        Route::patch('/', [ProfileController::class, 'update'])->name('update');
+        Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
+    });
+
+    // 🛒 Cart Management
+    Route::prefix('cart')->name('frontend.cart.')->group(function () {
+        Route::get('/', [CartController::class, 'view'])->name('view');
+        Route::post('/add/{product}', [CartController::class, 'add'])->name('add');
+        Route::delete('/remove/{product}', [CartController::class, 'remove'])->name('remove');
+    });
+
+    // 🛍️ Checkout
+    Route::prefix('checkout')->name('frontend.checkout.')->group(function () {
+        Route::get('/', [CheckoutController::class, 'index'])->name('index');
+        Route::post('/', [CheckoutController::class, 'process'])->name('process');
+    });
 });
 
-// Dashboard route (requires authentication and email verification)
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// ====================
+// 🏢 Super Admin Panel (Full Control)
+// ====================
+Route::middleware(['auth', 'role:super-admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-// Profile routes
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
+    // 🔹 Manage Users & Roles
+    Route::resource('users', UserController::class);
+    Route::resource('roles', RoleController::class);
 
-// Admin routes (product CRUD)
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Show all products (Backend)
-    Route::get('/products', [BackendProductController::class, 'index'])->name('products.index');
+    // ✅ Full Access to Product Management
+    Route::resource('products', BackendProductController::class);
     
-    // Create a new product (Backend)
+    // ✅ Full Access to Orders
+    Route::resource('orders', OrderController::class);
+    
+    // ✅ Full Access to Sales Reports
+    Route::get('/sales/reports', [SaleController::class, 'reports'])->name('sales.reports');
+    
+    // ✅ Full Access to Inventory Management
+    Route::resource('inventory', InventoryController::class);
+});
+
+// ====================
+// 📦 Product Management (Admin & Manager)
+// ====================
+Route::middleware(['auth', 'role:admin|manager|super-admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/products', [BackendProductController::class, 'index'])->name('products.index');
     Route::get('/products/create', [BackendProductController::class, 'create'])->name('products.create');
     Route::post('/products', [BackendProductController::class, 'store'])->name('products.store');
-    
-    // Show product details (Backend)
     Route::get('/products/{product}', [BackendProductController::class, 'show'])->name('products.show');
-    
-    // Edit product (Backend)
     Route::get('/products/{product}/edit', [BackendProductController::class, 'edit'])->name('products.edit');
     Route::put('/products/{product}', [BackendProductController::class, 'update'])->name('products.update');
-    
-    // Delete product (Backend)
     Route::delete('/products/{product}', [BackendProductController::class, 'destroy'])->name('products.destroy');
 });
 
-// Frontend routes (view and show products)
-Route::get('/products', [FrontendProductController::class, 'index'])->name('frontend.products.index');
-Route::get('/products/{product}', [FrontendProductController::class, 'show'])->name('frontend.products.show');
+// ====================
+// 💰 Cashier Routes (Manage Sales, Process Orders)
+// ====================
+Route::middleware(['auth', 'role:cashier|super-admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Cashier can only manage sales and process orders
+    Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+    Route::post('/sales/process/{order}', [SaleController::class, 'process'])->name('sales.process');
 
-// Cart and checkout routes (Frontend)
-Route::post('/cart', [CartController::class, 'add'])->name('frontend.cart.add');
-Route::get('/cart', [CartController::class, 'view'])->name('frontend.cart.view');
-Route::get('/checkout', [CheckoutController::class, 'index'])->name('frontend.checkout');
-Route::post('/checkout', [CheckoutController::class, 'process'])->name('frontend.checkout.process');
+    // Manage product prices
+    Route::get('/products/{product}/edit-price', [BackendProductController::class, 'editPrice'])->name('products.edit-price');
+    Route::put('/products/{product}/update-price', [BackendProductController::class, 'updatePrice'])->name('products.update-price');
+});
 
+// ====================
+// 📦 Inventory Management (Inventory Staff)
+// ====================
+Route::middleware(['auth', 'role:inventory-staff|super-admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    Route::post('/inventory/restock/{product}', [InventoryController::class, 'restock'])->name('inventory.restock');
+});
+
+// Include authentication routes
 require __DIR__.'/auth.php';
+```
 
+---
+
+### **📌 Controller Enhancements**
+#### **🔹 `BackendProductController.php` (Admin Product Management)**
+```php
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('role:super-admin|manager')->except(['editPrice', 'updatePrice']);
+        $this->middleware('role:cashier')->only(['editPrice', 'updatePrice']);
+    }
+
+    public function index()
+    {
+        $products = Product::all();
+        return view('backend.products.index', compact('products'));
+    }
+
+    public function create()
+    {
+        return view('backend.products.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric',
+            'description' => 'nullable|string',
+        ]);
+
+        Product::create($request->all());
+        return redirect()->route('admin.products.index')->with('success', 'Product created successfully.');
+    }
+
+    public function show(Product $product)
+    {
+        return view('backend.products.show', compact('product'));
+    }
+
+    public function edit(Product $product)
+    {
+        return view('backend.products.edit', compact('product'));
+    }
+
+    public function update(Request $request, Product $product)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric',
+            'description' => 'nullable|string',
+        ]);
+
+        $product->update($request->all());
+        return redirect()->route('admin.products.index')->with('success', 'Product updated successfully.');
+    }
+
+    public function destroy(Product $product)
+    {
+        $product->delete();
+        return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully.');
+    }
+
+    // 💰 Manage Price (Cashier)
+    public function editPrice(Product $product)
+    {
+        return view('backend.products.edit-price', compact('product'));
+    }
+
+    public function updatePrice(Request $request, Product $product)
+    {
+        $request->validate([
+            'price' => 'required|numeric',
+        ]);
+
+        $product->update(['price' => $request->price]);
+        return redirect()->route('admin.products.index')->with('success', 'Product price updated successfully.');
+    }
+}
+```
+
+---
+
+## **📌 Updated Business Logic**
+| **Role** | **Responsibilities & Permissions** |
+|----------|----------------------------------|
+| **Guest** | Browse products, view product details, sign in/register. |
+| **User (Customer)** | Add products to cart, place orders, view order history, checkout. |
+| **Super Admin** | Full control over users, roles, products, orders, sales reports, and inventory. |
+| **Admin** | Manage products, view orders, manage users (excluding permissions). |
+| **Manager** | Manage products, stock levels, and discounts. |
+| **Cashier** | Handle sales transactions, apply discounts, and process orders. |
+| **Inventory Staff** | Manage stock, restock products, track inventory. |
+
+---
+
+## **📌 Controller Enhancements**
+### **🔹 `SaleController.php` (Handles POS Sales & Transactions)**
+```php
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use App\Models\Order;
+use Illuminate\Http\Request;
+
+class SaleController extends Controller
+{
+    public function index()
+    {
+        $orders = Order::where('status', 'pending')->get();
+        return view('backend.sales.index', compact('orders'));
+    }
+
+    public function process(Order $order)
+    {
+        $order->update(['status' => 'completed']);
+        return redirect()->route('admin.sales.index')->with('success', 'Order processed successfully.');
+    }
+
+    public function reports()
+    {
+        $sales = Order::where('status', 'completed')->get();
+        return view('backend.sales.reports', compact('sales'));
+    }
+}
+```
+
+### **🔹 `InventoryController.php` (Handles Inventory Management)**
+```php
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class InventoryController extends Controller
+{
+    public function index()
+    {
+        $products = Product::all();
+        return view('backend.inventory.index', compact('products'));
+    }
+
+    public function restock(Request $request, Product $product)
+    {
+        $request->validate([
+            'quantity' => 'required|integer|min:1'
+        ]);
+
+        $product->increment('stock', $request->quantity);
+        return redirect()->route('admin.inventory.index')->with('success', 'Stock updated successfully.');
+    }
+}
 ```
 
 ---
@@ -2369,133 +2629,333 @@ These commands will generate Blade component files in `resources/views/component
 
 ## **Step 2: Structure of the Layout Components**
 
-Each generated component consists of:
+---
 
-1. **Blade Template:** Located in `resources/views/components/`
-2. **Class File:** Located in `app/View/Components/`
-
-### **How to Structure It**
-You should modify **BackendLayout** and **FrontendLayout** to extend **AppLayout** like this:
+### **📌 Optimized Laravel Navigation Structure for Multi-Role POS System**
+To maintain **separation of concerns** while ensuring **reusability**, the navigation bars (navbar) for **frontend (customers/guests)** and **backend (admin roles)** will be different, but structured properly.
 
 ---
 
-### **1. Default Application Layout (`app-layout.blade.php`)**
-This will act as the **base template** for all views.
+## **1️⃣ Updated Directory Structure**
+```
+resources/
+  ├── views/
+  │   ├── layouts/
+  │   │   ├── guest.blade.php          # For public pages (before login)
+  │   │   ├── app.blade.php            # For logged-in users (Customers)
+  │   │   ├── admin.blade.php          # For Admins, Managers, Super Admin, etc.
+  │   ├── frontend/
+  │   │   ├── products/
+  │   │   │   ├── index.blade.php
+  │   │   │   ├── show.blade.php
+  │   │   ├── cart/
+  │   │   │   ├── index.blade.php
+  │   │   ├── checkout/
+  │   │   │   ├── index.blade.php
+  │   ├── backend/
+  │   │   ├── dashboard.blade.php
+  │   │   ├── products/
+  │   │   │   ├── index.blade.php
+  │   │   │   ├── create.blade.php
+  │   │   │   ├── edit.blade.php
+  │   │   │   ├── show.blade.php
+  │   │   ├── orders/
+  │   │   │   ├── index.blade.php
+  │   │   │   ├── create.blade.php
+  │   │   │   ├── edit.blade.php
+  │   │   │   ├── show.blade.php
+  │   │   ├── users/
+  │   │   │   ├── index.blade.php
+  │   │   ├── sales/
+  │   │   │   ├── index.blade.php
+  │   │   │   ├── create.blade.php
+  │   │   │   ├── edit.blade.php
+  │   │   │   ├── show.blade.php
+  │   │   ├── inventory/
+  │   │   │   ├── index.blade.php
+  │   │   │   ├── create.blade.php
+  │   │   │   ├── edit.blade.php
+  │   │   │   ├── show.blade.php
+  │   ├── components/
+  │   │   ├── frontend/
+  │   │   │   ├── navbar.blade.php      # Navigation for guests/customers
+  │   │   │   ├── footer.blade.php
+  │   │   ├── backend/
+  │   │   │   ├── navbar.blade.php      # Navigation for admin roles
+  │   │   │   ├── sidebar.blade.php     # Sidebar for admin roles
+  ├── auth/
+  │   ├── login.blade.php
+  │   ├── register.blade.php
+```
 
+---
+
+## **2️⃣ Creating Navigation Components**
+Each layout (`guest.blade.php`, `app.blade.php`, and `admin.blade.php`) will **include different navigation files** based on the user type.
+
+---
+
+### **📌 1. Frontend Navigation (`resources/views/components/frontend/navbar.blade.php`)**
+> **For:** Guests & Customers  
+> **Includes:** Links to Home, Products, Cart, Login/Register (for guests), Dashboard/Orders (for customers)
+
+```blade
+<nav class="bg-gray-900 text-white py-4">
+    <div class="container mx-auto flex justify-between items-center">
+        <a href="{{ route('home') }}" class="text-lg font-semibold">POS Shop</a>
+
+        <ul class="flex space-x-6">
+            <li><a href="{{ route('frontend.products.index') }}" class="hover:underline">Products</a></li>
+
+            @guest
+                <li><a href="{{ route('login') }}" class="hover:underline">Login</a></li>
+                <li><a href="{{ route('register') }}" class="hover:underline">Register</a></li>
+            @else
+                <li><a href="{{ route('frontend.cart.view') }}" class="hover:underline">Cart</a></li>
+                <li><a href="{{ route('dashboard') }}" class="hover:underline">Dashboard</a></li>
+                <li><a href="{{ route('profile.edit') }}" class="hover:underline">Profile</a></li>
+                <li>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="hover:underline">Logout</button>
+                    </form>
+                </li>
+            @endguest
+        </ul>
+    </div>
+</nav>
+```
+---
+
+### **📌 2. Backend Navigation (`resources/views/components/backend/navbar.blade.php`)**
+> **For:** Super Admin, Admin, Manager, Cashier, Inventory Staff  
+> **Includes:** Dashboard, Products, Orders, Users, Inventory, Sales, Logout
+
+```blade
+<nav class="bg-gray-800 text-white py-4">
+    <div class="container mx-auto flex justify-between items-center">
+        <a href="{{ route('admin.dashboard') }}" class="text-lg font-semibold">Admin Panel</a>
+
+        <ul class="flex space-x-6">
+            <li><a href="{{ route('admin.dashboard') }}" class="hover:underline">Dashboard</a></li>
+
+            @role('super-admin|admin|manager')
+                <li><a href="{{ route('admin.products.index') }}" class="hover:underline">Products</a></li>
+            @endrole
+
+            @role('super-admin|cashier')
+                <li><a href="{{ route('admin.sales.index') }}" class="hover:underline">Sales</a></li>
+            @endrole
+
+            @role('super-admin|inventory-staff')
+                <li><a href="{{ route('admin.inventory.index') }}" class="hover:underline">Inventory</a></li>
+            @endrole
+
+            @role('super-admin')
+                <li><a href="{{ route('admin.users.index') }}" class="hover:underline">Users</a></li>
+            @endrole
+
+            <li>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="hover:underline">Logout</button>
+                </form>
+            </li>
+        </ul>
+    </div>
+</nav>
+```
+
+---
+
+### **📌 3. Backend Sidebar (`resources/views/components/backend/sidebar.blade.php`)**
+> **For:** Admin roles  
+> **Includes:** Navigation for dashboard, products, sales, users, etc.
+
+```blade
+<aside class="w-64 bg-gray-900 text-white h-screen p-4 fixed">
+    <ul>
+        <li class="mb-4"><a href="{{ route('admin.dashboard') }}" class="block p-2 hover:bg-gray-700">Dashboard</a></li>
+
+        @role('super-admin|admin|manager')
+            <li class="mb-4"><a href="{{ route('admin.products.index') }}" class="block p-2 hover:bg-gray-700">Products</a></li>
+        @endrole
+
+        @role('super-admin|cashier')
+            <li class="mb-4"><a href="{{ route('admin.sales.index') }}" class="block p-2 hover:bg-gray-700">Sales</a></li>
+        @endrole
+
+        @role('super-admin|inventory-staff')
+            <li class="mb-4"><a href="{{ route('admin.inventory.index') }}" class="block p-2 hover:bg-gray-700">Inventory</a></li>
+        @endrole
+
+        @role('super-admin')
+            <li class="mb-4"><a href="{{ route('admin.users.index') }}" class="block p-2 hover:bg-gray-700">Users</a></li>
+        @endrole
+    </ul>
+</aside>
+```
+
+---
+
+## **3️⃣ Updating Layouts to Include Correct Navigation**
+### **📌 1. Guest Layout (`resources/views/layouts/guest.blade.php`)**
 ```blade
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title ?? 'My Application' }}</title>
+    <title>@yield('title', 'Welcome')</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
-    <header>
-        @include('partials.navbar')
-    </header>
-    
-    <main>
-        {{ $slot }}
+
+    @include('components.frontend.navbar')
+
+    <main class="container mx-auto p-4">
+        @yield('guest-content')
     </main>
 
-    <footer>
-        @include('partials.footer')
-    </footer>
+    @include('components.frontend.footer')
+
 </body>
 </html>
 ```
 
 ---
 
-### **2. Backend Layout (`backend-layout.blade.php`)**
-Now, **BackendLayout** extends **AppLayout** and adds backend-specific components.
-
+### **📌 2. App Layout (`resources/views/layouts/app.blade.php`)**
 ```blade
-<x-app-layout>
-    @include('backend.sidebar')
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@yield('title', 'Dashboard')</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body>
 
-    <div class="backend-content">
-        {{ $slot }}
-    </div>
-</x-app-layout>
-```
+    @include('components.frontend.navbar')
 
----
-
-### **3. Frontend Layout (`frontend-layout.blade.php`)**
-Similarly, **FrontendLayout** extends **AppLayout** and includes frontend-specific components.
-
-```blade
-<x-app-layout>
-    @include('frontend.navbar')
-
-    <main>
-        {{ $slot }}
+    <main class="container mx-auto p-4">
+        @yield('app-content')
     </main>
-</x-app-layout>
+
+    @include('components.frontend.footer')
+
+</body>
+</html>
 ```
 
 ---
 
-### **Why This Approach?**
-✅ **AppLayout remains the foundation** – ensuring a **consistent structure** across both frontend and backend.  
-✅ **Backend and Frontend Layouts only add specific features** – keeping everything modular and **easy to maintain**.  
-✅ **Less redundancy** – no need to duplicate shared styles, scripts, or layouts.
+### **📌 3. Admin Layout (`resources/views/layouts/admin.blade.php`)**
+```blade
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@yield('title', 'Admin Panel')</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body>
 
-### Example Directory Structure (Optimized):
+    @include('components.backend.navbar')
 
-```
-app/
-  ├── View/
-  │   ├── Components/
-  │   │   ├── AppLayout.php
-  │   │   ├── BackendLayout.php
-  │   │   ├── FrontendLayout.php
-resources/
-  ├── views/
-  │   ├── components/
-  │   │   ├── app-layout.blade.php
-  │   │   ├── backend-layout.blade.php
-  │   │   ├── frontend-layout.blade.php
-  │   ├── layouts/
-  │   │   ├── app-layout.blade.php
-  │   │   ├── backend-layout.blade.php
-  │   │   ├── frontend-layout.blade.php
+    <div class="flex">
+        @include('components.backend.sidebar')
+
+        <main class="w-full p-4">
+            @yield('admin-content')
+        </main>
+   ```blade
+    </div>
+
+</body>
+</html>
 ```
 
 ---
 
-## **Step 3: Using Layout Components**
+## **4️⃣ Usage Example in Views**
+Each page will **extend the appropriate layout** based on the user type.
 
-#### **1. Using the Base Application Layout (`app-layout`)**
-
+### **📌 Guest Page (Example: `resources/views/frontend/products/index.blade.php`)**
 ```blade
-<x-app-layout>
-    <h1>Welcome to Laravel</h1>
-</x-app-layout>
-```
+@extends('layouts.guest')
 
-#### **2. Using the Backend Layout (`backend-layout`)**
+@section('title', 'Products')
 
-```blade
-<x-backend-layout>
-    <h1>Admin Dashboard</h1>
-</x-backend-layout>
-```
-
-#### **3. Using the Frontend Layout (`frontend-layout`)**
-
-```blade
-<x-frontend-layout>
-    <h1>User Profile</h1>
-</x-frontend-layout>
+@section('guest-content')
+    <h1 class="text-2xl font-bold">Product List</h1>
+    <ul>
+        @foreach($products as $product)
+            <li><a href="{{ route('frontend.products.show', $product->id) }}">{{ $product->name }}</a></li>
+        @endforeach
+    </ul>
+@endsection
 ```
 
 ---
 
-Here’s a professional guide on creating a **Laravel Artisan Command** to generate **Blade view files** and classify them for **backend** and **frontend**.
+### **📌 Customer Dashboard (Example: `resources/views/frontend/dashboard.blade.php`)**
+```blade
+@extends('layouts.app')
+
+@section('title', 'Dashboard')
+
+@section('app-content')
+    <h1 class="text-2xl font-bold">Welcome, {{ auth()->user()->name }}!</h1>
+    <p>Your recent orders:</p>
+    <ul>
+        @foreach($orders as $order)
+            <li>Order #{{ $order->id }} - {{ $order->status }}</li>
+        @endforeach
+    </ul>
+@endsection
+```
+
+---
+
+### **📌 Admin Panel (Example: `resources/views/backend/products/index.blade.php`)**
+```blade
+@extends('layouts.admin')
+
+@section('title', 'Manage Products')
+
+@section('admin-content')
+    <h1 class="text-2xl font-bold">Manage Products</h1>
+    <a href="{{ route('admin.products.create') }}" class="btn btn-primary">Add New Product</a>
+    
+    <table class="w-full border mt-4">
+        <thead>
+            <tr>
+                <th class="border p-2">Name</th>
+                <th class="border p-2">Price</th>
+                <th class="border p-2">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($products as $product)
+                <tr>
+                    <td class="border p-2">{{ $product->name }}</td>
+                    <td class="border p-2">${{ number_format($product->price, 2) }}</td>
+                    <td class="border p-2">
+                        <a href="{{ route('admin.products.edit', $product->id) }}" class="text-blue-500">Edit</a> |
+                        <form action="{{ route('admin.products.destroy', $product->id) }}" method="POST" class="inline-block">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-500">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+@endsection
+```
 
 ---
 
@@ -3182,6 +3642,283 @@ use Illuminate\Support\Facades\Storage;
 
 Storage::disk('local')->put('example.txt', 'File content');
 ```
+---
+
+## **📌 Laravel Repository Pattern - Best Practice for Scalable Applications**
+
+The **Repository Pattern** in Laravel provides a **clean and structured way** to separate **business logic** from **database operations**. This enhances **maintainability, testability, and scalability**.
+
+---
+
+# **📂 Repository Pattern Folder Structure in Laravel**
+A well-structured **repository pattern** ensures clean and maintainable code.
+
+```
+app/
+  ├── Http/
+  │   ├── Controllers/
+  │   │   ├── Backend/
+  │   │   │   ├── ProductController.php
+  │   │   │   ├── OrderController.php
+  │   │   │   ├── UserController.php
+  │   │   ├── Frontend/
+  │   │   │   ├── ProductController.php
+  │   │   │   ├── CartController.php
+  │   │   │   ├── CheckoutController.php
+  ├── Models/
+  │   ├── Product.php
+  │   ├── Order.php
+  │   ├── User.php
+  ├── Repositories/              # 🔥 Repository Layer
+  │   ├── Interfaces/            # 🔹 Repository Interfaces
+  │   │   ├── ProductRepositoryInterface.php
+  │   │   ├── OrderRepositoryInterface.php
+  │   │   ├── UserRepositoryInterface.php
+  │   ├── Eloquent/              # 🔹 Eloquent Repository Implementations
+  │   │   ├── ProductRepository.php
+  │   │   ├── OrderRepository.php
+  │   │   ├── UserRepository.php
+  ├── Services/                  # 🔥 Business Logic Layer
+  │   ├── ProductService.php
+  │   ├── OrderService.php
+  │   ├── UserService.php
+  ├── Providers/
+  │   ├── RepositoryServiceProvider.php
+resources/
+  ├── views/
+  │   ├── frontend/
+  │   │   ├── products/
+  │   │   ├── cart/
+  │   │   ├── checkout/
+  │   ├── backend/
+  │   │   ├── dashboard/
+  │   │   ├── products/
+  │   │   ├── orders/
+  │   │   ├── users/
+```
+
+---
+
+# **📌 Step-by-Step Guide to Implement the Repository Pattern in Laravel**
+
+## **1️⃣ Create the Repository Interface**
+Repository interfaces define **method contracts** that must be implemented.
+
+### **ProductRepositoryInterface.php**
+```php
+<?php
+
+namespace App\Repositories\Interfaces;
+
+use App\Models\Product;
+
+interface ProductRepositoryInterface
+{
+    public function getAll();
+    public function getById($id);
+    public function create(array $data);
+    public function update($id, array $data);
+    public function delete($id);
+}
+```
+
+---
+
+## **2️⃣ Create the Repository Implementation**
+Repositories contain the **Eloquent logic** for database interactions.
+
+### **ProductRepository.php**
+```php
+<?php
+
+namespace App\Repositories\Eloquent;
+
+use App\Models\Product;
+use App\Repositories\Interfaces\ProductRepositoryInterface;
+
+class ProductRepository implements ProductRepositoryInterface
+{
+    public function getAll()
+    {
+        return Product::all();
+    }
+
+    public function getById($id)
+    {
+        return Product::findOrFail($id);
+    }
+
+    public function create(array $data)
+    {
+        return Product::create($data);
+    }
+
+    public function update($id, array $data)
+    {
+        $product = Product::findOrFail($id);
+        $product->update($data);
+        return $product;
+    }
+
+    public function delete($id)
+    {
+        return Product::destroy($id);
+    }
+}
+```
+
+---
+
+## **3️⃣ Create a Business Logic Service**
+A **Service Layer** is used to handle **complex business logic** before interacting with the repository.
+
+### **ProductService.php**
+```php
+<?php
+
+namespace App\Services;
+
+use App\Repositories\Interfaces\ProductRepositoryInterface;
+
+class ProductService
+{
+    protected $productRepository;
+
+    public function __construct(ProductRepositoryInterface $productRepository)
+    {
+        $this->productRepository = $productRepository;
+    }
+
+    public function getAllProducts()
+    {
+        return $this->productRepository->getAll();
+    }
+
+    public function getProductById($id)
+    {
+        return $this->productRepository->getById($id);
+    }
+
+    public function createProduct(array $data)
+    {
+        return $this->productRepository->create($data);
+    }
+
+    public function updateProduct($id, array $data)
+    {
+        return $this->productRepository->update($id, $data);
+    }
+
+    public function deleteProduct($id)
+    {
+        return $this->productRepository->delete($id);
+    }
+}
+```
+
+---
+
+## **4️⃣ Bind Repositories in a Service Provider**
+To ensure **Dependency Injection**, we bind the repository interface to its implementation in a **service provider**.
+
+### **RepositoryServiceProvider.php**
+```php
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use App\Repositories\Interfaces\ProductRepositoryInterface;
+use App\Repositories\Eloquent\ProductRepository;
+
+class RepositoryServiceProvider extends ServiceProvider
+{
+    public function register()
+    {
+        $this->app->bind(ProductRepositoryInterface::class, ProductRepository::class);
+    }
+}
+```
+💡 **Now, Laravel will automatically resolve `ProductRepositoryInterface` with `ProductRepository` whenever needed!**
+
+---
+
+## **5️⃣ Use Repository in a Controller**
+Now we can **inject the service** into a controller.
+
+### **Backend ProductController**
+```php
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use App\Services\ProductService;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    protected $productService;
+
+    public function __construct(ProductService $productService)
+    {
+        $this->productService = $productService;
+    }
+
+    public function index()
+    {
+        $products = $this->productService->getAllProducts();
+        return view('backend.products.index', compact('products'));
+    }
+
+    public function create()
+    {
+        return view('backend.products.create');
+    }
+
+    public function store(Request $request)
+    {
+        $this->productService->createProduct($request->all());
+        return redirect()->route('admin.products.index')->with('success', 'Product created successfully!');
+    }
+
+    public function show($id)
+    {
+        $product = $this->productService->getProductById($id);
+        return view('backend.products.show', compact('product'));
+    }
+
+    public function edit($id)
+    {
+        $product = $this->productService->getProductById($id);
+        return view('backend.products.edit', compact('product'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $this->productService->updateProduct($id, $request->all());
+        return redirect()->route('admin.products.index')->with('success', 'Product updated successfully!');
+    }
+
+    public function destroy($id)
+    {
+        $this->productService->deleteProduct($id);
+        return redirect()->route('admin.products.index')->with('success', 'Product deleted successfully!');
+    }
+}
+```
+
+---
+
+## **6️⃣ Register Service Provider in `config/app.php`**
+Ensure the **RepositoryServiceProvider** is loaded in Laravel.
+
+```php
+'providers' => [
+    // Other providers...
+    App\Providers\RepositoryServiceProvider::class,
+],
+```
 
 ---
 
@@ -3342,3 +4079,353 @@ To point traffic to the Laravel `public` directory:
    - Regularly back up your application files, especially before deploying updates.
 
 ---
+
+## **✅ Security, Maintainability, and Performance for Laravel POS**
+To ensure your **Laravel POS system** is **secure, maintainable, and high-performing**, follow these best practices:
+
+---
+
+## **🔐 Security Best Practices**
+### **1️⃣ Use HTTPS**
+Always **force HTTPS** in production.
+```php
+\URL::forceScheme('https');
+```
+✅ Protects against **man-in-the-middle attacks**.
+
+---
+
+### **2️⃣ Prevent SQL Injection**
+✅ **Use Eloquent or Query Builder** instead of raw SQL.
+❌ **Bad Practice**:
+```php
+DB::select("SELECT * FROM products WHERE name = '$name'");
+```
+✅ **Good Practice**:
+```php
+Product::where('name', $name)->first();
+```
+
+---
+
+### **3️⃣ Implement CSRF Protection**
+✅ Laravel automatically protects against **CSRF attacks**.
+Ensure all **forms include**:
+```blade
+<form action="{{ route('checkout') }}" method="POST">
+    @csrf
+</form>
+```
+✅ Prevents **malicious form submissions**.
+
+---
+
+### **4️⃣ Secure Authentication & Sessions**
+✅ Use **strong password hashing** (Laravel uses **bcrypt** by default).
+```php
+use Illuminate\Support\Facades\Hash;
+$user->password = Hash::make('securepassword');
+```
+✅ Store **sessions securely**:
+```ini
+SESSION_DRIVER=redis
+SESSION_SECURE_COOKIE=true
+```
+✅ **Enable Two-Factor Authentication (2FA)** using **Laravel Fortify**.
+
+---
+
+### **5️⃣ Restrict Access Based on Roles**
+✅ **Use Spatie Role Middleware**:
+```php
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::resource('products', BackendProductController::class);
+});
+```
+✅ Prevents unauthorized access.
+
+---
+
+### **6️⃣ Validate & Sanitize User Inputs**
+✅ **Always use Form Request Validation**:
+```bash
+php artisan make:request ProductRequest
+```
+✅ **Inside `ProductRequest.php`**:
+```php
+public function rules()
+{
+    return [
+        'name' => 'required|string|max:255',
+        'price' => 'required|numeric|min:0',
+        'description' => 'nullable|string',
+        'stock' => 'required|integer|min:0',
+    ];
+}
+```
+✅ Prevents **XSS & injection attacks**.
+
+---
+
+### **7️⃣ Prevent Mass Assignment**
+✅ Protect models by defining **fillable** fields:
+```php
+protected $fillable = ['name', 'price', 'description', 'stock'];
+```
+✅ Prevents **malicious data injection**.
+
+---
+
+### **8️⃣ Secure File Uploads**
+✅ Use Laravel's **storage disk** to prevent execution of **malicious files**:
+```php
+$filePath = $request->file('image')->store('products', 'public');
+```
+✅ Never allow **direct execution** of uploaded files.
+
+---
+
+### **9️⃣ Prevent Brute-Force Attacks**
+✅ Use Laravel’s built-in **Rate Limiting**:
+```php
+use Illuminate\Support\Facades\RateLimiter;
+
+RateLimiter::for('login', function (Request $request) {
+    return Limit::perMinute(5)->by($request->ip());
+});
+```
+✅ Blocks repeated failed login attempts.
+
+---
+
+### **🔐 Security Checklist**
+✔ **Use HTTPS**  
+✔ **Prevent SQL Injection**  
+✔ **Enable CSRF Protection**  
+✔ **Use Strong Password Hashing**  
+✔ **Restrict Routes Based on Roles**  
+✔ **Sanitize and Validate Inputs**  
+✔ **Secure File Uploads**  
+✔ **Enable Rate Limiting**
+
+---
+
+## **🛠️ Maintainability Best Practices**
+### **1️⃣ Organize Your Code Properly**
+✅ Follow **MVC Structure**:
+```
+app/
+  ├── Models/               # Business logic
+  ├── Http/
+  │   ├── Controllers/      # Handle HTTP requests
+  │   ├── Requests/         # Form request validation
+  │   ├── Middleware/       # Security & authentication
+  ├── Services/             # Business logic (optional)
+  ├── Repositories/         # Data layer (optional)
+resources/
+  ├── views/                # Blade templates
+routes/
+  ├── web.php               # Web routes
+  ├── api.php               # API routes
+```
+✅ Improves **code readability**.
+
+---
+
+### **2️⃣ Use Service and Repository Pattern**
+✅ **Separate business logic** from controllers.
+```bash
+php artisan make:service ProductService
+php artisan make:repository ProductRepository
+```
+✅ **Example Product Repository (`app/Repositories/ProductRepository.php`)**:
+```php
+namespace App\Repositories;
+use App\Models\Product;
+
+class ProductRepository {
+    public function all() {
+        return Product::all();
+    }
+}
+```
+✅ Improves **scalability**.
+
+---
+
+### **3️⃣ Use Dependency Injection**
+✅ Inject dependencies instead of using `new Class()`.
+```php
+public function __construct(ProductService $productService)
+{
+    $this->productService = $productService;
+}
+```
+✅ **Easier to test and maintain**.
+
+---
+
+### **4️⃣ Write Unit & Feature Tests**
+✅ **Use PHPUnit for testing**:
+```bash
+php artisan test
+```
+✅ Example **ProductTest.php**:
+```php
+public function test_product_creation()
+{
+    $product = Product::factory()->create();
+    $this->assertDatabaseHas('products', ['name' => $product->name]);
+}
+```
+✅ Prevents **regression issues**.
+
+---
+
+### **5️⃣ Use Laravel Queues for Background Jobs**
+✅ **Run tasks asynchronously**.
+```bash
+php artisan queue:work
+```
+✅ **Example: Sending Order Confirmation Email**:
+```php
+dispatch(new OrderConfirmed($order));
+```
+✅ Reduces **response time**.
+
+---
+
+### **6️⃣ Use Config Caching in Production**
+✅ **Optimize Configs**:
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+✅ Speeds up **request processing**.
+
+---
+
+### **7️⃣ Automate Database Migrations**
+✅ Use **migrate:fresh --seed** in development:
+```bash
+php artisan migrate:fresh --seed
+```
+✅ Ensures **consistent DB state**.
+
+---
+
+### **🛠 Maintainability Checklist**
+✔ **Follow MVC Structure**  
+✔ **Use Service and Repository Pattern**  
+✔ **Use Dependency Injection**  
+✔ **Write Unit & Feature Tests**  
+✔ **Use Laravel Queues for Background Jobs**  
+✔ **Optimize Configs with Caching**  
+✔ **Automate Migrations**  
+
+---
+
+## **🚀 Performance Optimization Best Practices**
+### **1️⃣ Use Redis for Caching**
+✅ Install Redis:
+```bash
+composer require predis/predis
+```
+✅ Enable Redis in `.env`:
+```ini
+CACHE_DRIVER=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+```
+✅ Improves **session & cache speed**.
+
+---
+
+### **2️⃣ Use Database Indexing**
+✅ Add indexes to frequently queried columns:
+```php
+$table->index('name');
+```
+✅ Speeds up **database queries**.
+
+---
+
+### **3️⃣ Optimize Eloquent Queries**
+✅ Avoid **N+1 query problem**.
+❌ **Bad Practice**:
+```php
+$products = Product::all();
+foreach ($products as $product) {
+    echo $product->category->name;
+}
+```
+✅ **Good Practice (Eager Loading)**:
+```php
+$products = Product::with('category')->get();
+```
+✅ Reduces **DB queries**.
+
+---
+
+### **4️⃣ Use Lazy Collection for Large Data**
+✅ Process large datasets **without high memory usage**:
+```php
+Product::cursor()->each(function ($product) {
+    // Process product
+});
+```
+✅ Improves **memory efficiency**.
+
+---
+
+### **5️⃣ Optimize Blade Views**
+✅ **Use `@foreach` instead of `@each`**:
+```blade
+@foreach($products as $product)
+    <p>{{ $product->name }}</p>
+@endforeach
+```
+✅ Reduces **rendering overhead**.
+
+---
+
+### **6️⃣ Enable OPcache**
+✅ **Speeds up PHP execution**.
+```ini
+opcache.enable=1
+opcache.memory_consumption=128
+opcache.max_accelerated_files=4000
+```
+✅ Boosts **script execution**.
+
+---
+
+### **7️⃣ Minimize NPM & Composer Packages**
+✅ Remove **unused dependencies**:
+```bash
+composer remove package-name
+npm uninstall package-name
+```
+✅ **Reduces bloat**.
+
+---
+
+### **🚀 Performance Checklist**
+✔ **Use Redis for Caching**  
+✔ **Use Database Indexing**  
+✔ **Optimize Eloquent Queries**  
+✔ **Use Lazy Collection for Large Data**  
+✔ **Optimize Blade Views**  
+✔ **Enable OPcache**  
+✔ **Minimize Dependencies**  
+
+---
+
+## **🎯 Final Thoughts**
+🔥 By following these **Security, Maintainability, and Performance** practices, your Laravel POS system will be:
+✔ **Secure** 🔒  
+✔ **Scalable** 🏗️  
+✔ **High-Performance** ⚡  
+
+Your **POS System is now enterprise-ready** 🚀!
