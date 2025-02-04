@@ -1,3 +1,50 @@
+## Run User Guide
+
+```bash
+$ git clone git@github.com:toewailin/yes24.git
+$ cd yes24
+$ composer install
+$ npm install && npm run build
+$ code .
+```
+
+Create .env
+```php
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=db_yes24
+DB_USERNAME=root
+DB_PASSWORD=root
+```
+
+Login to mysql
+```bash
+$ mysql -u root -p
+Enter your password:
+```
+
+Create the database
+```mysql
+CREATE DATABASE db_yes24;
+```
+
+Run
+```bash
+$ php artisan key:generate
+$ php artisan migrate:ordered
+$ php artisan db:seed
+$ composer run dev
+```
+
+Enter to Webpage
+http://localhost:8000
+
+email - admin@gmail.com
+password - password
+
+---
+
 ## Laravel Project Process
 
 ### step by step project guide
@@ -4429,3 +4476,218 @@ npm uninstall package-name
 ✔ **High-Performance** ⚡  
 
 Your **POS System is now enterprise-ready** 🚀!
+
+## **🛠 Step 1: Generate a Blade Component**
+Run the following Artisan command to create a new component:
+
+```bash
+php artisan make:component Button
+```
+This will generate:
+1. **Class File:** `app/View/Components/Button.php`
+2. **Blade File:** `resources/views/components/button.blade.php`
+
+---
+
+## **📌 Step 2: Define Logic in the Component Class**
+Open `app/View/Components/Button.php` and modify it:
+
+```php
+<?php
+
+namespace App\View\Components;
+
+use Illuminate\View\Component;
+
+class Button extends Component
+{
+    public $type;
+    public $size;
+    public $color;
+
+    public function __construct($type = 'button', $size = 'md', $color = 'blue')
+    {
+        $this->type = $type;
+        $this->size = $size;
+        $this->color = $color;
+    }
+
+    public function render()
+    {
+        return view('components.button');
+    }
+}
+```
+### **Explanation:**
+- This component accepts **`type`**, **`size`**, and **`color`** as props.
+- Defaults: **`type='button'`**, **`size='md'`**, **`color='blue'`**.
+- The `render()` method returns the **`components.button`** view.
+
+---
+
+## **📌 Step 3: Define the Blade Template**
+Now, open `resources/views/components/button.blade.php` and add the button structure:
+
+```blade
+<button type="{{ $type }}" class="px-4 py-2 font-semibold text-white rounded-lg bg-{{ $color }}-500 hover:bg-{{ $color }}-700 text-{{ $size }}">
+    {{ $slot }}
+</button>
+```
+
+### **Explanation:**
+- **`$slot`**: Used to place dynamic content inside the component.
+- **`$type`**, **`$size`**, and **`$color`**: Passed as props and used in the class.
+
+---
+
+## **📌 Step 4: Use the Component in a View**
+Now, you can use this component in any Blade view.
+
+```blade
+<x-button>Click Me</x-button>
+```
+
+### **🔹 Passing Props**
+```blade
+<x-button type="submit" color="red" size="lg">Submit</x-button>
+```
+
+---
+
+## **📌 Step 5: Using a Component Inside Another Component**
+You can use components inside other components.
+
+Example: Create a **card** component:
+```bash
+php artisan make:component Card
+```
+Modify `resources/views/components/card.blade.php`:
+
+```blade
+<div class="p-4 shadow-lg rounded-lg border border-gray-200 bg-white">
+    <h3 class="text-lg font-semibold">{{ $title }}</h3>
+    <p class="text-gray-700">{{ $slot }}</p>
+    <div class="mt-2">
+        <x-button color="green">{{ $buttonText }}</x-button>
+    </div>
+</div>
+```
+
+Modify `app/View/Components/Card.php`:
+```php
+<?php
+
+namespace App\View\Components;
+
+use Illuminate\View\Component;
+
+class Card extends Component
+{
+    public $title;
+    public $buttonText;
+
+    public function __construct($title, $buttonText = 'Learn More')
+    {
+        $this->title = $title;
+        $this->buttonText = $buttonText;
+    }
+
+    public function render()
+    {
+        return view('components.card');
+    }
+}
+```
+
+Now, use the `Card` component in a view:
+
+```blade
+<x-card title="Laravel Components" buttonText="Read More">
+    Blade Components make UI reusable and organized!
+</x-card>
+```
+
+---
+
+## **📌 Step 6: Passing Data Dynamically**
+If you want to pass a dynamic value, you can do:
+
+```blade
+<x-button :color="$product->is_available ? 'green' : 'gray'">
+    {{ $product->name }}
+</x-button>
+```
+
+---
+
+## **📌 Step 7: Using Slots for More Flexibility**
+By default, `$slot` is the content inside the component.
+
+You can **define named slots**:
+
+```blade
+<x-card>
+    <x-slot name="header">
+        <h2 class="font-bold text-xl">Custom Header</h2>
+    </x-slot>
+    
+    This is the main content.
+    
+    <x-slot name="footer">
+        <p class="text-sm text-gray-500">Footer Content</p>
+    </x-slot>
+</x-card>
+```
+
+Modify `resources/views/components/card.blade.php`:
+```blade
+<div class="border p-4 rounded-lg shadow">
+    <div class="mb-2">{{ $header ?? '' }}</div>
+    <div>{{ $slot }}</div>
+    <div class="mt-2">{{ $footer ?? '' }}</div>
+</div>
+```
+
+---
+
+## **📌 Step 8: Global vs. Anonymous Components**
+### **Global Components** (Registered Automatically)
+When created using:
+```bash
+php artisan make:component Button
+```
+They can be used **globally** with `<x-button>Click Me</x-button>`.
+
+### **Anonymous Components** (No PHP Class)
+You can create a **Blade-only** component inside `resources/views/components/`.
+
+Example:
+1. Create `resources/views/components/alert.blade.php`:
+```blade
+<div class="p-4 bg-{{ $type ?? 'gray' }}-200 text-{{ $type ?? 'gray' }}-800 rounded-lg">
+    {{ $slot }}
+</div>
+```
+2. Use it without needing a PHP class:
+```blade
+<x-alert type="red">This is an error alert!</x-alert>
+```
+
+---
+
+## **✅ Summary**
+| Feature  | Example | Use Case |
+|----------|--------|----------|
+| **Basic Component** | `<x-button>Click Me</x-button>` | Reusable UI elements |
+| **Passing Props** | `<x-button type="submit" color="red" size="lg">Submit</x-button>` | Customizable behavior |
+| **Using Slots** | `<x-card><x-slot name="header">Title</x-slot>Content</x-card>` | Custom layouts |
+| **Anonymous Component** | `<x-alert type="warning">Be careful!</x-alert>` | Simple UI blocks |
+| **Named Slots** | `<x-card><x-slot name="footer">Footer</x-slot></x-card>` | Flexible content |
+
+---
+
+## **🚀 Final Thoughts**
+1. **Use components for common UI elements** (buttons, cards, modals).
+2. **Keep logic in the class file** and avoid cluttering Blade files.
+3. **Use named slots** when components need flexible content.
+4. **Leverage anonymous components** when no logic is needed.
